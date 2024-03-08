@@ -56,8 +56,10 @@ end
 function compute_trials_nll_threads_dict(model::ADDM.aDDM, data, likelihood_fn, likelihood_args = (timeStep = 10.0, approxStateStep = 0.1); 
   return_trial_likelihoods = false, sequential_model = false)
 
-  likelihoods = Dict{Int, Float64}()
-  data_dict = Dict(zip(1:length(data), data))
+  n_trials = length(data)
+  # likelihoods = Dict{Int, Float64}() 
+  likelihoods = Dict(zip(1:n_trials, zeros(n_trials)))
+  data_dict = Dict(zip(1:n_trials, data))
 
   if sequential_model
     for (trial_number, one_trial) in data_dict 
@@ -75,7 +77,7 @@ function compute_trials_nll_threads_dict(model::ADDM.aDDM, data, likelihood_fn, 
   end
 
   # If likelihood is 0, set it to 1e-64 to avoid taking the log of a 0.
-  likelihoods = max.(values(likelihoods), 1e-64)
+  likelihoods = Dict(k => max(v, 1e-64) for (k,v) in likelihoods)
 
   # Sum over all of the negative log likelihoods.
   negative_log_likelihood = -sum(log.(values(likelihoods)))
@@ -145,8 +147,8 @@ likelihood_fn = ADDM.aDDM_get_trial_likelihood
 #########################
 
 ## Current legacy version in package
-b1 = @benchmark compute_trials_nll(model, data, likelihood_fn; return_trial_likelihoods = false)
-println("compute_trials_nll (no likelihoods) = $(minimum(b1.times)/10^6)")
+# b1 = @benchmark compute_trials_nll(model, data, likelihood_fn; return_trial_likelihoods = false)
+# println("compute_trials_nll (no likelihoods) = $(minimum(b1.times)/10^6)")
 
 ## Equivalent without array comprehension has same performance
 # bench_results = @benchmark compute_trials_nll2(model, data, likelihood_fn; return_trial_likelihoods = false)
@@ -157,12 +159,12 @@ b2 = @benchmark compute_trials_nll(model, data, likelihood_fn; return_trial_like
 println("compute_trials_nll (w likelihoods) = $(minimum(b2.times)/10^6)")
 
 ## Increasing from 1 to 3 threads cut time by half
-b3 = @benchmark compute_trials_nll_threads(model, data, likelihood_fn; return_trial_likelihoods = false)
-println("compute_trials_nll_threads (no likelihoods) = $(minimum(b3.times)/10^6)")
+# b3 = @benchmark compute_trials_nll_threads(model, data, likelihood_fn; return_trial_likelihoods = false)
+# println("compute_trials_nll_threads (no likelihoods) = $(minimum(b3.times)/10^6)")
 
 ## Again returning trial likelihoods does not make much of a difference
-b4 = @benchmark compute_trials_nll_threads(model, data, likelihood_fn; return_trial_likelihoods = true)
-println("compute_trials_nll_threads (w likelihoods) = $(minimum(b4.times)/10^6)")
+# b4 = @benchmark compute_trials_nll_threads(model, data, likelihood_fn; return_trial_likelihoods = true)
+# println("compute_trials_nll_threads (w likelihoods) = $(minimum(b4.times)/10^6)")
 
 ## Are likelihoods returned in the same order? No!
 # nll, ls = compute_trials_nll(model, data, likelihood_fn; return_trial_likelihoods = true)
@@ -176,8 +178,8 @@ println("compute_trials_nll_threads_dict (w likelihoods) = $(minimum(b5.times)/1
 ## FLoops: Similar to/slightly worse than @threads 
 ## But with a warning for boxed variables
 ## Though note less variability in histograms
-b6 = @benchmark compute_trials_nll_floop(model, data, likelihood_fn; return_trial_likelihoods = true)
-println("compute_trials_nll_floop (w likelihoods) = $(minimum(b6.times)/10^6)")
+# b6 = @benchmark compute_trials_nll_floop(model, data, likelihood_fn; return_trial_likelihoods = true)
+# println("compute_trials_nll_floop (w likelihoods) = $(minimum(b6.times)/10^6)")
 
 
 # Usage
